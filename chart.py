@@ -17,5 +17,9 @@ for pair in readings:
     times.append(int(pair[0]) - offset)
     volts.append(float(pair[1]))
 
-plt.scatter(times, volts)
+plt.figure(dpi=200)
+plt.plot(times, volts, linewidth=0.5, markersize=2)
+if len(sys.argv) == 3:
+    plt.savefig(sys.argv[2])
 plt.show()
+
