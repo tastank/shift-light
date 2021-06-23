@@ -17,7 +17,7 @@ uint16_t rpm;
 // when this is num_lights + 1, set all red; when it is num_lights + 2, flash cyan.
 uint8_t num_lights_illuminated;
 
-const uint8_t rpm_pin = 6;
+const uint8_t rpm_pin = 7;
 const uint8_t rpm_periods = 4;
 unsigned long rpm_pulse_times[rpm_periods+1]; // rising edge to rising edge is two samples but one period
 uint8_t current_time_index = 0;
@@ -66,7 +66,7 @@ uint16_t get_rpm() {
 }
 
 uint8_t get_on_brightness() {
-  return 12;
+  return 24;
 }
 
 uint8_t get_flash_brightness() {
@@ -108,6 +108,7 @@ void light_off(uint8_t light) {
   colors[light].red = 0;
   colors[light].green = 0;
   colors[light].blue = 0;
+  // see comment in light_on()
   colors[led_count - light - 1].red = 0;
   colors[led_count - light - 1].green = 0;
   colors[led_count - light - 1].blue = 0;
@@ -202,9 +203,12 @@ void loop() {
   }
   if (millis() - print_interval > last_print_millis) {
     last_print_millis = millis();
+    for (uint8_t c = 0; c <= rpm_periods; c++) {
+      //Serial.print("Pulse time: ");
+      //Serial.println(rpm_pulse_times[c]);
+    }
     Serial.print("RPM: "); Serial.println(rpm);
   }
   interrupts();
 #endif
 }
-
