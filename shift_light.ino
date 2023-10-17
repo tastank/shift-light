@@ -1,3 +1,5 @@
+
+#include <ESP32AnalogRead.h>
 #include <APA102.h>
 #include "Freenove_WS2812_Lib_for_ESP32.h"
 
@@ -21,6 +23,8 @@
 #define FUEL_READ_EN_PIN 10
 #define FUEL_PIN 6
 #define VOLTMETER_PIN 9
+
+ESP32AnalogRead oil_press_adc, oil_temp_adc, water_press_adc, water_temp_adc, fuel_adc, volts_adc;
 
 #define OIL_PRESS_RESISTOR_OHMS 99.9f
 #define WATER_PRESS_RESISTOR_OHMS 129.9f
@@ -101,10 +105,6 @@ unsigned long last_print_millis = 0;
 unsigned long print_interval = 100;
 #endif
 
-float analogRead_to_volts(uint16_t raw_volts) {
-  return (float)raw_volts / 4095.0f * VCC_VOLTS;
-}
-
 uint16_t get_rpm() {
 #ifdef TEST
   if (rpm < 30) {
@@ -131,8 +131,8 @@ uint16_t get_rpm() {
 #endif
 }
 
-float get_sensor_ohms(uint8_t pin, float power_supply_volts, float primary_resistor_ohms) {
-  float sensor_volts = analogRead_to_volts(analogRead(pin));
+float get_sensor_ohms(ESP32AnalogRead adc, float power_supply_volts, float primary_resistor_ohms) {
+  float sensor_volts = adc.readVoltage();
   return sensor_volts * primary_resistor_ohms / (power_supply_volts - sensor_volts);
 }
 
@@ -244,7 +244,7 @@ float get_fuel() {
 }
 
 float get_battery_volts() {
-  float sensor_volts = analogRead_to_volts(analogRead(VOLTMETER_PIN));
+  float sensor_volts = volts_adc.readVoltage();
   return sensor_volts * (VOLTMETER_PRIMARY_RESISTOR_OHMS + VOLTMETER_SECONDARY_RESISTOR_OHMS) / VOLTMETER_SECONDARY_RESISTOR_OHMS;
 }
 
@@ -313,7 +313,7 @@ void IRAM_ATTR record_rpm_pulse_time() {
   if (time - rpm_pulse_times[current_time_index] < 3000) {
     // There is a bit of noise in the signal, and because it's used to control ignition I don't want to filter it.
     // If we're here, pulse length is less than 2.5ms. This indicates 10000 RPM. Either it's noise or the engine is already toast. Either way, we can safely ignore it.
-    return;  
+    return;
   }
   current_time_index = earliest_time_index;
   if (++earliest_time_index > RPM_PERIODS) {
@@ -369,16 +369,16 @@ void serial_output_values() {
 
 void setup() {
   pinMode(RPM_PIN, INPUT_PULLUP);
-  pinMode(OIL_PRESS_PIN, INPUT);
-  pinMode(OIL_TEMP_PIN, INPUT);
-  pinMode(WATER_PRESS_PIN, INPUT);
-  pinMode(WATER_TEMP_PIN, INPUT);
   pinMode(FUEL_READ_EN_PIN, OUTPUT);
-  digitalWrite(FUEL_READ_EN_PIN, HIGH);
-  pinMode(FUEL_PIN, INPUT);
-  pinMode(VOLTMETER_PIN, INPUT);
+  digitalWrite(FUEL_READ_EN_PIN, LOW);
 
-  analogReadResolution(12);
+  oil_press_adc.attach(OIL_PRESS_PIN);
+  oil_temp_adc.attach(OIL_TEMP_PIN);
+  water_press_adc.attach(WATER_PRESS_PIN);
+  water_temp_adc.attach(WATER_TEMP_PIN);
+  fuel_adc.attach(FUEL_PIN);
+  volts_adc.attach(VOLTMETER_PIN);
+
 #ifdef TEST
   oil_press = 30.0f;
   oil_temp = 190.0f;
