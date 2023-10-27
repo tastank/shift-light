@@ -47,7 +47,6 @@ ESP32AnalogRead oil_press_adc, oil_temp_adc, water_press_adc, water_temp_adc, fu
 #endif
 
 const double PULSES_PER_REV = 2.0;
-// TODO add 4000 to these thresholds
 const uint16_t MIN_RPM = 4300;
 const uint16_t MAX_RPM = 5300;
 const uint16_t FLASH_RPM = 5500;
