@@ -56,6 +56,7 @@ const uint16_t RPM_HYSTERESIS = RPM_INCREMENT / 5;
 uint16_t rpm;
 // when this is num_lights + 1, set all red; when it is num_lights + 2, flash cyan.
 uint8_t num_lights_illuminated;
+bool warn_flash_on = true;
 
 float oil_press = 0.0f;
 float oil_temp = 0.0f;
@@ -338,6 +339,13 @@ void update_values() {
   water_temp = get_water_temp();
   fuel = get_fuel();
   volts = get_battery_volts();
+  if (millis() % 1024 < 512 && !warn_flash_on) {
+    warn_flash_on = true;
+    Serial.println("FLASH:1");
+  } else if (millis() % 1024 >= 512 && warn_flash_on) {
+    warn_flash_on = false;
+    Serial.println("FLASH:0");
+  }
 }
 
 void serial_output_values() {
@@ -421,7 +429,7 @@ void loop() {
   }
 
   if (rpm < 300) {
-    if (millis() % 1024 > 511) {
+    if (warn_flash_on) {
       brightness = get_on_brightness();
     } else {
       brightness = 0;
