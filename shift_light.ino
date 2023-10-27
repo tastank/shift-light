@@ -399,9 +399,7 @@ void setup() {
   digitalWrite(CLOCK_EN_PIN, LOW);
   digitalWrite(DATA_EN_PIN, LOW);
   Serial.begin(921600);
-  // this allows the user to stop the RPi display by pressing the reset button
   delay(100);
-  Serial.print("\nSTOP\n");
 }
 
 void loop() {
