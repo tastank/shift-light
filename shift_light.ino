@@ -155,8 +155,8 @@ float get_oil_temp() {
 
 float get_oil_press() {
 #ifdef TEST
-  if (rand() % 10 == 0) oil_press -= 0.3f;
-  if (rand() % 10 == 9) oil_press += 0.3f;
+  oil_press = rpm / 100.0f;
+  return oil_press;
 #else
   float sensor_ohms = get_sensor_ohms(OIL_PRESS_PIN, PSU_VOLTS, OIL_PRESS_RESISTOR_OHMS);
   float current_oil_press_sample;
