@@ -243,8 +243,14 @@ float get_fuel() {
 }
 
 float get_battery_volts() {
+#ifdef TEST
+  if (rand() % 10 == 0) volts -= 0.01f;
+  if (rand() % 10 == 9) volts += 0.01f;
+  return volts;
+#else
   float sensor_volts = volts_adc.readVoltage();
   return sensor_volts * (VOLTMETER_PRIMARY_RESISTOR_OHMS + VOLTMETER_SECONDARY_RESISTOR_OHMS) / VOLTMETER_SECONDARY_RESISTOR_OHMS;
+#endif
 }
 
 uint8_t get_on_brightness() {
@@ -384,6 +390,7 @@ void setup() {
   water_press = 13.0f;
   water_temp = 180.0f;
   fuel = 12.0f;
+  volts = 14.0f;
 #endif
   strip.begin();
   strip.setBrightness(15);
