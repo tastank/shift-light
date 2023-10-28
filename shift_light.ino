@@ -67,7 +67,8 @@ float volts = 0.0f;
 
 const uint8_t RPM_PIN = 1;
 const uint8_t RPM_PERIODS = 4;
-unsigned long rpm_pulse_times[RPM_PERIODS + 1];  // rising edge to rising edge is two samples but one period
+const uint8_t RPM_SAMPLE_COUNT = RPM_PERIODS + 1;
+unsigned long rpm_pulse_times[RPM_SAMPLE_COUNT];  // rising edge to rising edge is two samples but one period
 uint8_t current_time_index = 0;
 uint8_t earliest_time_index = 0;
 
@@ -190,7 +191,7 @@ float get_water_temp() {
   float sensor_ohms = get_sensor_ohms(WATER_TEMP_PIN, PSU_VOLTS, WATER_TEMP_RESISTOR_OHMS);
   float current_water_temp_sample = get_steinhart_hart_thermistor_tempF(sensor_ohms, WATER_TEMP_SENSOR_A, WATER_TEMP_SENSOR_B, WATER_TEMP_SENSOR_C);
   water_temp_samples[current_water_temp_sample_index] = current_water_temp_sample;
-  if (++current_water_temp_sample_index > WATER_TEMP_SAMPLE_COUNT) {
+  if (++current_water_temp_sample_index == WATER_TEMP_SAMPLE_COUNT) {
     current_water_temp_sample_index = 0;
   }
   float water_temp_average = 0.0f;
@@ -231,7 +232,7 @@ float get_fuel() {
   float current_fuel_sample = 11.75f - 0.2f * sensor_ohms;
   digitalWrite(FUEL_READ_EN_PIN, LOW);
   fuel_samples[current_fuel_sample_index] = current_fuel_sample;
-  if (++current_fuel_sample_index > FUEL_SAMPLE_COUNT) {
+  if (++current_fuel_sample_index == FUEL_SAMPLE_COUNT) {
     current_fuel_sample_index = 0;
   }
   float fuel_average = 0.0f;
@@ -308,7 +309,7 @@ void light_off(uint8_t light) {
 }
 
 void reset_rpm_time_array() {
-  for (uint8_t c = 0; c <= RPM_PERIODS; c++) {
+  for (uint8_t c = 0; c < RPM_SAMPLE_COUNT; c++) {
     rpm_pulse_times[c] = 0;
   }
   current_time_index = 0;
@@ -322,7 +323,7 @@ void IRAM_ATTR record_rpm_pulse_time() {
     return;
   }
   current_time_index = earliest_time_index;
-  if (++earliest_time_index > RPM_PERIODS) {
+  if (++earliest_time_index == RPM_SAMPLE_COUNT) {
     earliest_time_index = 0;
   }
   rpm_pulse_times[current_time_index] = time;
