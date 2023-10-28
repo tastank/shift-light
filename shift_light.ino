@@ -140,7 +140,7 @@ float get_sensor_ohms(ESP32AnalogRead adc, float power_supply_volts, float prima
 float get_steinhart_hart_thermistor_tempF(float ohms, float a, float b, float c) {
   float tempK = 1.0f / (a + b * log(ohms) + c * pow(log(ohms), 3.0f));
   float tempC = tempK - 273.15f;
-  float tempF = 5.0f / 9.0f * tempC + 32.0f;
+  float tempF = 1.8f * tempC + 32.0f;
   return tempF;
 }
 
