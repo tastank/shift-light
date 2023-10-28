@@ -535,7 +535,7 @@ void loop() {
   }
   if (millis() - print_interval > last_print_millis) {
     last_print_millis = millis();
-    for (uint8_t c = 0; c <= rpm_periods; c++) {
+    for (uint8_t c = 0; c < RPM_SAMPLE_COUNT; c++) {
       Serial.print("Pulse time: ");
       Serial.println(rpm_pulse_times[c]);
     }
