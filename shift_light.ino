@@ -1,5 +1,5 @@
 
-#include <ESP32AnalogRead.h>
+#include "esp_adc_cal.h"
 #include <APA102.h>
 #include "Freenove_WS2812_Lib_for_ESP32.h"
 
@@ -14,17 +14,31 @@
 
 #define VCC_VOLTS 3.3f
 #define PSU_VOLTS 3.3f
+#define ADC_VOLTAGE_REF_MV 1100
 
 // ADCs are on pins 1-17
 #define OIL_PRESS_PIN 2    // green
+// This corresponds to GPIO pin 2. See the ESP32S2 datasheet for the full mapping.
+#define OIL_PRESS_ADC_CHANNEL ADC1_CHANNEL_1
 #define OIL_TEMP_PIN 3     // black?
+#define OIL_TEMP_ADC_CHANNEL ADC1_CHANNEL_2
 #define WATER_PRESS_PIN 4  // orange
+#define WATER_PRESS_ADC_CHANNEL ADC1_CHANNEL_3
 #define WATER_TEMP_PIN 5   // blue
+#define WATER_TEMP_ADC_CHANNEL ADC1_CHANNEL_4
 #define FUEL_READ_EN_PIN 10
 #define FUEL_PIN 6
+#define FUEL_ADC_CHANNEL ADC1_CHANNEL_5
 #define VOLTMETER_PIN 9
+#define VOLTMETER_ADC_CHANNEL ADC1_CHANNEL_8
 
-ESP32AnalogRead oil_press_adc, oil_temp_adc, water_press_adc, water_temp_adc, fuel_adc, volts_adc;
+  esp_adc_cal_characteristics_t oil_press_adc_characteristics,
+    oil_temp_adc_characteristics,
+    water_press_adc_characteristics,
+    water_temp_adc_characteristics,
+    fuel_adc_characteristics,
+    voltmeter_adc_characteristics;
+
 
 #define OIL_PRESS_RESISTOR_OHMS 99.9f
 #define WATER_PRESS_RESISTOR_OHMS 129.9f
@@ -132,9 +146,24 @@ uint16_t get_rpm() {
 #endif
 }
 
-float get_sensor_ohms(ESP32AnalogRead adc, float power_supply_volts, float primary_resistor_ohms) {
-  float sensor_volts = adc.readVoltage();
-  return sensor_volts * primary_resistor_ohms / (power_supply_volts - sensor_volts);
+float get_esp_adc_volts(adc1_channel_t adc_channel, esp_adc_cal_characteristics_t characteristics) {
+  int raw_adc_val = adc1_get_raw(adc_channel);
+  uint32_t millivolts = esp_adc_cal_raw_to_voltage(raw_adc_val, &characteristics);
+  return millivolts * 0.001f;
+}
+
+float get_sensor_ohms(adc1_channel_t adc_channel, esp_adc_cal_characteristics_t characteristics, float power_supply_volts, float primary_resistor_ohms) {
+  float sensor_volts = get_esp_adc_volts(adc_channel, characteristics);
+  //float sensor_volts = esp_adc_cal_raw_to_voltage(adc1_get_raw(adc_channel), &characteristics) * 0.001f;
+
+  float ohms = sensor_volts * primary_resistor_ohms / (power_supply_volts - sensor_volts);
+#ifdef DEBUG
+  Serial.print("Raw volts: ");
+  Serial.println(sensor_volts);
+  Serial.print("Ohms: ");
+  Serial.println(ohms);
+#endif
+  return ohms;
 }
 
 float get_steinhart_hart_thermistor_tempF(float ohms, float a, float b, float c) {
@@ -149,7 +178,7 @@ float get_oil_temp() {
   if (rand() % 10 == 0) oil_temp -= 1.0f;
   if (rand() % 10 == 9) oil_temp += 1.0f;
 #else
-  float sensor_ohms = get_sensor_ohms(OIL_TEMP_PIN, PSU_VOLTS, OIL_TEMP_RESISTOR_OHMS);
+  float sensor_ohms = get_sensor_ohms(OIL_TEMP_ADC_CHANNEL, oil_temp_adc_characteristics, PSU_VOLTS, OIL_TEMP_RESISTOR_OHMS);
   oil_temp = get_steinhart_hart_thermistor_tempF(sensor_ohms, OIL_TEMP_SENSOR_A, OIL_TEMP_SENSOR_B, OIL_TEMP_SENSOR_C);
 #endif
   return oil_temp;
@@ -160,7 +189,7 @@ float get_oil_press() {
   oil_press = rpm / 100.0f;
   return oil_press;
 #else
-  float sensor_ohms = get_sensor_ohms(OIL_PRESS_PIN, PSU_VOLTS, OIL_PRESS_RESISTOR_OHMS);
+  float sensor_ohms = get_sensor_ohms(OIL_PRESS_ADC_CHANNEL, oil_press_adc_characteristics, PSU_VOLTS, OIL_PRESS_RESISTOR_OHMS);
   float current_oil_press_sample;
   // This formula was derived experimentally.
   // For the range within which I am most concerned, this will return the correct pressure
@@ -188,7 +217,7 @@ float get_water_temp() {
   if (rand() % 10 == 0) water_temp -= 1.0f;
   if (rand() % 10 == 9) water_temp += 1.0f;
 #else
-  float sensor_ohms = get_sensor_ohms(WATER_TEMP_PIN, PSU_VOLTS, WATER_TEMP_RESISTOR_OHMS);
+  float sensor_ohms = get_sensor_ohms(WATER_TEMP_ADC_CHANNEL, water_temp_adc_characteristics, PSU_VOLTS, WATER_TEMP_RESISTOR_OHMS);
   float current_water_temp_sample = get_steinhart_hart_thermistor_tempF(sensor_ohms, WATER_TEMP_SENSOR_A, WATER_TEMP_SENSOR_B, WATER_TEMP_SENSOR_C);
   water_temp_samples[current_water_temp_sample_index] = current_water_temp_sample;
   if (++current_water_temp_sample_index == WATER_TEMP_SAMPLE_COUNT) {
@@ -208,7 +237,7 @@ float get_water_press() {
   if (rand() % 10 == 0) water_press -= 0.1f;
   if (rand() % 10 == 9) water_press += 0.1f;
 #else
-  float sensor_ohms = get_sensor_ohms(WATER_PRESS_PIN, PSU_VOLTS, WATER_PRESS_RESISTOR_OHMS);
+  float sensor_ohms = get_sensor_ohms(WATER_PRESS_ADC_CHANNEL, water_press_adc_characteristics, PSU_VOLTS, WATER_PRESS_RESISTOR_OHMS);
   // This formula was determined experimentally. See the comment in get_oil_press.
   // This should return the correct pressure within 0.5psi for the normal range (5-20psi)
   if (sensor_ohms > 230.0f) {
@@ -228,7 +257,7 @@ float get_fuel() {
   }
 #else
   digitalWrite(FUEL_READ_EN_PIN, HIGH);
-  float sensor_ohms = get_sensor_ohms(FUEL_PIN, PSU_VOLTS, FUEL_RESISTOR_OHMS);
+  float sensor_ohms = get_sensor_ohms(FUEL_ADC_CHANNEL, fuel_adc_characteristics, PSU_VOLTS, FUEL_RESISTOR_OHMS);
   float current_fuel_sample = 11.75f - 0.2f * sensor_ohms;
   digitalWrite(FUEL_READ_EN_PIN, LOW);
   fuel_samples[current_fuel_sample_index] = current_fuel_sample;
@@ -250,7 +279,7 @@ float get_battery_volts() {
   if (rand() % 10 == 9) volts += 0.01f;
   return volts;
 #else
-  float sensor_volts = volts_adc.readVoltage();
+  float sensor_volts = get_esp_adc_volts(VOLTMETER_ADC_CHANNEL, voltmeter_adc_characteristics);
   return sensor_volts * (VOLTMETER_PRIMARY_RESISTOR_OHMS + VOLTMETER_SECONDARY_RESISTOR_OHMS) / VOLTMETER_SECONDARY_RESISTOR_OHMS;
 #endif
 }
@@ -381,17 +410,42 @@ void serial_output_values() {
   Serial.print('\n');
 }
 
+void configure_esp32_adcs() {
+  adc1_config_width(ADC_WIDTH_BIT_13);
+  adc1_config_channel_atten(OIL_PRESS_ADC_CHANNEL, ADC_ATTEN_11db);
+  adc1_config_channel_atten(OIL_TEMP_ADC_CHANNEL, ADC_ATTEN_11db);
+  adc1_config_channel_atten(WATER_PRESS_ADC_CHANNEL, ADC_ATTEN_11db);
+  adc1_config_channel_atten(WATER_TEMP_ADC_CHANNEL, ADC_ATTEN_11db);
+  adc1_config_channel_atten(FUEL_ADC_CHANNEL, ADC_ATTEN_0db);
+  adc1_config_channel_atten(VOLTMETER_ADC_CHANNEL, ADC_ATTEN_11db);
+
+  esp_adc_cal_characterize(ADC_UNIT_1,
+               ADC_ATTEN_11db,
+               ADC_WIDTH_BIT_13,
+               ADC_VOLTAGE_REF_MV,
+               &oil_press_adc_characteristics);
+  esp_adc_cal_characterize(ADC_UNIT_1,
+               ADC_ATTEN_0db,
+               ADC_WIDTH_BIT_13,
+               ADC_VOLTAGE_REF_MV,
+               &fuel_adc_characteristics);
+
+  // for now, they're all the same.
+  oil_temp_adc_characteristics = oil_press_adc_characteristics;
+  water_temp_adc_characteristics = oil_press_adc_characteristics;
+  water_press_adc_characteristics = oil_press_adc_characteristics;
+  voltmeter_adc_characteristics = oil_press_adc_characteristics;
+}
+
 void setup() {
+  Serial.begin(921600);
+  delay(100);
+
   pinMode(RPM_PIN, INPUT_PULLUP);
   pinMode(FUEL_READ_EN_PIN, OUTPUT);
   digitalWrite(FUEL_READ_EN_PIN, LOW);
 
-  oil_press_adc.attach(OIL_PRESS_PIN);
-  oil_temp_adc.attach(OIL_TEMP_PIN);
-  water_press_adc.attach(WATER_PRESS_PIN);
-  water_temp_adc.attach(WATER_TEMP_PIN);
-  fuel_adc.attach(FUEL_PIN);
-  volts_adc.attach(VOLTMETER_PIN);
+  configure_esp32_adcs();
 
 #ifdef TEST
   oil_press = 30.0f;
@@ -414,8 +468,6 @@ void setup() {
   pinMode(DATA_EN_PIN, OUTPUT);
   digitalWrite(CLOCK_EN_PIN, LOW);
   digitalWrite(DATA_EN_PIN, LOW);
-  Serial.begin(921600);
-  delay(100);
 }
 
 void loop() {
