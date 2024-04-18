@@ -17,14 +17,14 @@
 #define ADC_VOLTAGE_REF_MV 1100
 
 // ADCs are on pins 1-17
-#define OIL_PRESS_PIN 2    // green
+#define OIL_PRESS_PIN 2 // green
 // This corresponds to GPIO pin 2. See the ESP32S2 datasheet for the full mapping.
 #define OIL_PRESS_ADC_CHANNEL ADC1_CHANNEL_1
-#define OIL_TEMP_PIN 3     // black?
+#define OIL_TEMP_PIN 3 // black?
 #define OIL_TEMP_ADC_CHANNEL ADC1_CHANNEL_2
-#define WATER_PRESS_PIN 4  // orange
+#define WATER_PRESS_PIN 4 // orange
 #define WATER_PRESS_ADC_CHANNEL ADC1_CHANNEL_3
-#define WATER_TEMP_PIN 5   // blue
+#define WATER_TEMP_PIN 5 // blue
 #define WATER_TEMP_ADC_CHANNEL ADC1_CHANNEL_4
 #define FUEL_READ_EN_PIN 10
 #define FUEL_PIN 6
@@ -32,12 +32,12 @@
 #define VOLTMETER_PIN 9
 #define VOLTMETER_ADC_CHANNEL ADC1_CHANNEL_8
 
-  esp_adc_cal_characteristics_t oil_press_adc_characteristics,
-    oil_temp_adc_characteristics,
-    water_press_adc_characteristics,
-    water_temp_adc_characteristics,
-    fuel_adc_characteristics,
-    voltmeter_adc_characteristics;
+esp_adc_cal_characteristics_t oil_press_adc_characteristics,
+  oil_temp_adc_characteristics,
+  water_press_adc_characteristics,
+  water_temp_adc_characteristics,
+  fuel_adc_characteristics,
+  voltmeter_adc_characteristics;
 
 
 #define OIL_PRESS_RESISTOR_OHMS 99.9f
@@ -175,8 +175,7 @@ float get_steinhart_hart_thermistor_tempF(float ohms, float a, float b, float c)
 
 float get_oil_temp() {
 #ifdef TEST
-  if (rand() % 10 == 0) oil_temp -= 1.0f;
-  if (rand() % 10 == 9) oil_temp += 1.0f;
+  oil_temp = 200.0f;
 #else
   float sensor_ohms = get_sensor_ohms(OIL_TEMP_ADC_CHANNEL, oil_temp_adc_characteristics, PSU_VOLTS, OIL_TEMP_RESISTOR_OHMS);
   oil_temp = get_steinhart_hart_thermistor_tempF(sensor_ohms, OIL_TEMP_SENSOR_A, OIL_TEMP_SENSOR_B, OIL_TEMP_SENSOR_C);
@@ -214,8 +213,7 @@ float get_oil_press() {
 
 float get_water_temp() {
 #ifdef TEST
-  if (rand() % 10 == 0) water_temp -= 1.0f;
-  if (rand() % 10 == 9) water_temp += 1.0f;
+  water_temp = 170.0f;
 #else
   float sensor_ohms = get_sensor_ohms(WATER_TEMP_ADC_CHANNEL, water_temp_adc_characteristics, PSU_VOLTS, WATER_TEMP_RESISTOR_OHMS);
   float current_water_temp_sample = get_steinhart_hart_thermistor_tempF(sensor_ohms, WATER_TEMP_SENSOR_A, WATER_TEMP_SENSOR_B, WATER_TEMP_SENSOR_C);
@@ -234,8 +232,7 @@ float get_water_temp() {
 
 float get_water_press() {
 #ifdef TEST
-  if (rand() % 10 == 0) water_press -= 0.1f;
-  if (rand() % 10 == 9) water_press += 0.1f;
+  water_press = 13.0f;
 #else
   float sensor_ohms = get_sensor_ohms(WATER_PRESS_ADC_CHANNEL, water_press_adc_characteristics, PSU_VOLTS, WATER_PRESS_RESISTOR_OHMS);
   // This formula was determined experimentally. See the comment in get_oil_press.
@@ -275,8 +272,7 @@ float get_fuel() {
 
 float get_battery_volts() {
 #ifdef TEST
-  if (rand() % 10 == 0) volts -= 0.01f;
-  if (rand() % 10 == 9) volts += 0.01f;
+  volts = 14.0f;
   return volts;
 #else
   float sensor_volts = get_esp_adc_volts(VOLTMETER_ADC_CHANNEL, voltmeter_adc_characteristics);
@@ -419,16 +415,20 @@ void configure_esp32_adcs() {
   adc1_config_channel_atten(FUEL_ADC_CHANNEL, ADC_ATTEN_0db);
   adc1_config_channel_atten(VOLTMETER_ADC_CHANNEL, ADC_ATTEN_11db);
 
-  esp_adc_cal_characterize(ADC_UNIT_1,
-               ADC_ATTEN_11db,
-               ADC_WIDTH_BIT_13,
-               ADC_VOLTAGE_REF_MV,
-               &oil_press_adc_characteristics);
-  esp_adc_cal_characterize(ADC_UNIT_1,
-               ADC_ATTEN_0db,
-               ADC_WIDTH_BIT_13,
-               ADC_VOLTAGE_REF_MV,
-               &fuel_adc_characteristics);
+  esp_adc_cal_characterize(
+    ADC_UNIT_1,
+    ADC_ATTEN_11db,
+    ADC_WIDTH_BIT_13,
+    ADC_VOLTAGE_REF_MV,
+    &oil_press_adc_characteristics
+  );
+  esp_adc_cal_characterize(
+    ADC_UNIT_1,
+    ADC_ATTEN_0db,
+    ADC_WIDTH_BIT_13,
+    ADC_VOLTAGE_REF_MV,
+    &fuel_adc_characteristics
+  );
 
   // for now, they're all the same.
   oil_temp_adc_characteristics = oil_press_adc_characteristics;
