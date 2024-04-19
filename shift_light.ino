@@ -7,6 +7,7 @@
 
 //#define TEST
 //#define DEBUG
+#define DEBUG_RPM
 
 #define MAX_GREEN 3
 #define MAX_YELLOW 6
@@ -404,6 +405,14 @@ void serial_output_values() {
   Serial.print("VOLTS:");
   Serial.print(volts);
   Serial.print('\n');
+#ifdef DEBUG_RPM
+  Serial.print("PULSE TIMES:");
+  for (unsigned long rpm_pulse : rpm_pulse_times) {
+    Serial.print(rpm_pulse);
+    Serial.print(',');
+  }
+  Serial.print('\n');
+#endif
 }
 
 void configure_esp32_adcs() {
