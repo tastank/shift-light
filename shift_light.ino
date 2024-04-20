@@ -80,8 +80,8 @@ float water_temp = 0.0f;
 float fuel = 0.0f;
 float volts = 0.0f;
 
-const uint8_t RPM_PIN = 1;
-const uint8_t RPM_PERIODS = 4;
+const uint8_t RPM_PIN = 19;
+const uint8_t RPM_PERIODS = 3;
 const uint8_t RPM_SAMPLE_COUNT = RPM_PERIODS + 1;
 unsigned long rpm_pulse_times[RPM_SAMPLE_COUNT];  // rising edge to rising edge is two samples but one period
 uint8_t current_time_index = 0;
@@ -341,21 +341,14 @@ void reset_rpm_time_array() {
   current_time_index = 0;
 }
 
-unsigned long previous_pulse_duration = 0;
 void IRAM_ATTR record_rpm_pulse_time() {
   unsigned long time = micros();
   unsigned long pulse_duration = time - rpm_pulse_times[current_time_index];
-  if (rpm > 900 && time - rpm_pulse_times[current_time_index] < previous_pulse_duration * (rpm < 3000 ? 0.9f : 0.95f)) {
-    // this means RPM is increasing by 1/0.9 (11%) in the time it takes this to execute one loop (~30ms). This is almost certainly just noise, especially at higher RPM.
-    // I'm not sure if a lockup could trip this up though - engine speed may drop then rapidly rise in that instance
-    return;
-  }
   current_time_index = earliest_time_index;
   if (++earliest_time_index == RPM_SAMPLE_COUNT) {
     earliest_time_index = 0;
   }
   rpm_pulse_times[current_time_index] = time;
-  previous_pulse_duration = pulse_duration;
 #ifdef DEBUG
   pulse_detected = true;
 #endif
@@ -408,6 +401,7 @@ void serial_output_values() {
   Serial.print("VOLTS:");
   Serial.print(volts);
   Serial.print('\n');
+
 #ifdef DEBUG_RPM
   Serial.print("PULSE TIMES:");
   for (unsigned long rpm_pulse : rpm_pulse_times) {
@@ -453,7 +447,7 @@ void setup() {
   Serial.begin(921600);
   delay(100);
 
-  pinMode(RPM_PIN, INPUT_PULLUP);
+  pinMode(RPM_PIN, INPUT);
   pinMode(FUEL_READ_EN_PIN, OUTPUT);
   digitalWrite(FUEL_READ_EN_PIN, LOW);
 
