@@ -341,11 +341,13 @@ void reset_rpm_time_array() {
   current_time_index = 0;
 }
 
+unsigned long previous_pulse_duration = 0;
 void IRAM_ATTR record_rpm_pulse_time() {
   unsigned long time = micros();
-  if (time - rpm_pulse_times[current_time_index] < 3000) {
-    // There is a bit of noise in the signal, and because it's used to control ignition I don't want to filter it.
-    // If we're here, pulse length is less than 2.5ms. This indicates 10000 RPM. Either it's noise or the engine is already toast. Either way, we can safely ignore it.
+  unsigned long pulse_duration = time - rpm_pulse_times[current_time_index];
+  if (rpm > 900 && time - rpm_pulse_times[current_time_index] < previous_pulse_duration * (rpm < 3000 ? 0.9f : 0.95f)) {
+    // this means RPM is increasing by 1/0.9 (11%) in the time it takes this to execute one loop (~30ms). This is almost certainly just noise, especially at higher RPM.
+    // I'm not sure if a lockup could trip this up though - engine speed may drop then rapidly rise in that instance
     return;
   }
   current_time_index = earliest_time_index;
@@ -353,6 +355,7 @@ void IRAM_ATTR record_rpm_pulse_time() {
     earliest_time_index = 0;
   }
   rpm_pulse_times[current_time_index] = time;
+  previous_pulse_duration = pulse_duration;
 #ifdef DEBUG
   pulse_detected = true;
 #endif
