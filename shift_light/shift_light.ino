@@ -87,19 +87,6 @@ unsigned long rpm_pulse_times[RPM_SAMPLE_COUNT];  // rising edge to rising edge 
 uint8_t current_time_index = 0;
 uint8_t earliest_time_index = 0;
 
-// I want oil pressure to be pretty responsive
-const uint8_t OIL_PRESS_SAMPLE_COUNT = 8;
-float oil_press_samples[OIL_PRESS_SAMPLE_COUNT];
-uint8_t current_oil_press_sample_index = 0;
-// 64 samples will be about two seconds worth of data.
-const uint8_t WATER_TEMP_SAMPLE_COUNT = 64;
-float water_temp_samples[WATER_TEMP_SAMPLE_COUNT];
-uint8_t current_water_temp_sample_index = 0;
-// fuel does not have to be very responsive, but will be very noisy.
-const uint8_t FUEL_SAMPLE_COUNT = 255;
-float fuel_samples[FUEL_SAMPLE_COUNT];
-uint8_t current_fuel_sample_index = 0;
-
 // enable pins are for the logic level shifter; not needed for 5V boards
 const uint8_t CLOCK_EN_PIN = 33;
 const uint8_t CLOCK_PIN = 41;
@@ -190,24 +177,14 @@ float get_oil_press() {
   return oil_press;
 #else
   float sensor_ohms = get_sensor_ohms(OIL_PRESS_ADC_CHANNEL, oil_press_adc_characteristics, PSU_VOLTS, OIL_PRESS_RESISTOR_OHMS);
-  float current_oil_press_sample;
   // This formula was derived experimentally.
   // For the range within which I am most concerned, this will return the correct pressure
   // (assuming I can trust the gauge I used to calibrate it) within 1.5psi
   if (sensor_ohms < 2.0f) {
-    current_oil_press_sample = 0.0f;
+    oil_press = 0.0f;
   } else {
-    current_oil_press_sample = sensor_ohms * 0.77f + 6.5f;
+    oil_press = sensor_ohms * 0.77f + 6.5f;
   }
-  oil_press_samples[current_oil_press_sample_index] = current_oil_press_sample;
-  if (++current_oil_press_sample_index == OIL_PRESS_SAMPLE_COUNT) {
-    current_oil_press_sample_index = 0;
-  }
-  float oil_press_average = 0.0f;
-  for (float oil_press_sample : oil_press_samples) {
-    oil_press_average += oil_press_sample;
-  }
-  oil_press = oil_press_average / (float)OIL_PRESS_SAMPLE_COUNT;
 #endif
   return oil_press;
 }
@@ -217,16 +194,7 @@ float get_water_temp() {
   water_temp = 170.0f;
 #else
   float sensor_ohms = get_sensor_ohms(WATER_TEMP_ADC_CHANNEL, water_temp_adc_characteristics, PSU_VOLTS, WATER_TEMP_RESISTOR_OHMS);
-  float current_water_temp_sample = get_steinhart_hart_thermistor_tempF(sensor_ohms, WATER_TEMP_SENSOR_A, WATER_TEMP_SENSOR_B, WATER_TEMP_SENSOR_C);
-  water_temp_samples[current_water_temp_sample_index] = current_water_temp_sample;
-  if (++current_water_temp_sample_index == WATER_TEMP_SAMPLE_COUNT) {
-    current_water_temp_sample_index = 0;
-  }
-  float water_temp_average = 0.0f;
-  for (float water_temp_sample : water_temp_samples) {
-    water_temp_average += water_temp_sample;
-  }
-  water_temp = water_temp_average / (float)WATER_TEMP_SAMPLE_COUNT;
+  water_temp = get_steinhart_hart_thermistor_tempF(sensor_ohms, WATER_TEMP_SENSOR_A, WATER_TEMP_SENSOR_B, WATER_TEMP_SENSOR_C);
 #endif
   return water_temp;
 }
@@ -256,17 +224,8 @@ float get_fuel() {
 #else
   digitalWrite(FUEL_READ_EN_PIN, HIGH);
   float sensor_ohms = get_sensor_ohms(FUEL_ADC_CHANNEL, fuel_adc_characteristics, PSU_VOLTS, FUEL_RESISTOR_OHMS);
-  float current_fuel_sample = 11.75f - 0.2f * sensor_ohms;
   digitalWrite(FUEL_READ_EN_PIN, LOW);
-  fuel_samples[current_fuel_sample_index] = current_fuel_sample;
-  if (++current_fuel_sample_index == FUEL_SAMPLE_COUNT) {
-    current_fuel_sample_index = 0;
-  }
-  float fuel_average = 0.0f;
-  for (float fuel_sample : fuel_samples) {
-    fuel_average += fuel_sample;
-  }
-  fuel = fuel_average / (float)FUEL_SAMPLE_COUNT;
+  fuel = 11.75f - 0.2f * sensor_ohms;
 #endif
   return fuel;
 }
@@ -533,6 +492,7 @@ void loop() {
     }
   }
   led_strip.write(colors, LED_COUNT, brightness);
+
   delay(30);  // this makes the RPi happy, and we don't have to update every microsecond anyway.
 #ifdef DEBUG
 
