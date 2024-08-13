@@ -7,7 +7,7 @@
 
 //#define TEST
 //#define DEBUG
-#define DEBUG_RPM
+//#define DEBUG_RPM
 
 #define MAX_GREEN 3
 #define MAX_YELLOW 6
@@ -42,17 +42,17 @@ esp_adc_cal_characteristics_t oil_press_adc_characteristics,
 
 
 #define OIL_PRESS_RESISTOR_OHMS 99.9f
-#define WATER_PRESS_RESISTOR_OHMS 129.9f
-#define OIL_TEMP_RESISTOR_OHMS 997.0f
+#define WATER_PRESS_RESISTOR_OHMS 997.0f
+#define OIL_TEMP_RESISTOR_OHMS 129.9f
 #define WATER_TEMP_RESISTOR_OHMS 618.0f
 #define FUEL_RESISTOR_OHMS 996.0f
 #define VOLTMETER_PRIMARY_RESISTOR_OHMS 3306.0f
 #define VOLTMETER_SECONDARY_RESISTOR_OHMS 998.0f
 
 // coefficients for the Steinhart-Hart thermistor model
-#define WATER_TEMP_SENSOR_A 1.6859e-03
-#define WATER_TEMP_SENSOR_B 2.622578527e-04
-#define WATER_TEMP_SENSOR_C 4.79495763e-08
+#define WATER_TEMP_SENSOR_A 1.8143E-03
+#define WATER_TEMP_SENSOR_B 2.3266E-04
+#define WATER_TEMP_SENSOR_C 2.5863E-08
 #define OIL_TEMP_SENSOR_A 1.801187287e-03
 #define OIL_TEMP_SENSOR_B 2.18652583e-04
 #define OIL_TEMP_SENSOR_C 2.719311439e-07
@@ -62,9 +62,9 @@ esp_adc_cal_characteristics_t oil_press_adc_characteristics,
 #endif
 
 const double PULSES_PER_REV = 2.0;
-const uint16_t MIN_RPM = 4300;
-const uint16_t MAX_RPM = 5300;
-const uint16_t FLASH_RPM = 5500;
+const uint16_t MIN_RPM = 4500;
+const uint16_t MAX_RPM = 5500;
+const uint16_t FLASH_RPM = 5800;
 const uint16_t NUM_LIGHTS = 8;
 const uint16_t RPM_INCREMENT = (MAX_RPM - MIN_RPM) / NUM_LIGHTS;
 const uint16_t RPM_HYSTERESIS = RPM_INCREMENT / 5;
@@ -397,10 +397,13 @@ void serial_output_values() {
   Serial.print("FUEL:");
   Serial.print(fuel);
   Serial.print('\n');
-
+/*
+  // volts disabled as the RaceBox Micro can handle that
+  // leaving the rest of the code in here as it doesn't impact performance significantly and I may decide to move the RaceBox to a 5V power supply
   Serial.print("VOLTS:");
   Serial.print(volts);
   Serial.print('\n');
+*/
 
 #ifdef DEBUG_RPM
   Serial.print("PULSE TIMES:");
