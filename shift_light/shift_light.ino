@@ -408,6 +408,7 @@ void configure_esp32_adcs() {
 void setup() {
   Serial.begin(921600);
   delay(100);
+  Serial.println("\nRESET");
 
   pinMode(RPM_PIN, INPUT);
   pinMode(FUEL_READ_EN_PIN, OUTPUT);
